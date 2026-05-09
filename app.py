@@ -67,6 +67,14 @@ def create_playlist():
         found_names.append(canonical)
         artist_results.append({"name": name, "canonical": canonical, "found": True, "tracks": len(uris)})
 
+    seen = set()
+    deduped = []
+    for uri in all_uris:
+        if uri not in seen:
+            seen.add(uri)
+            deduped.append(uri)
+    all_uris = deduped
+
     if not all_uris:
         return jsonify({"error": "No tracks found for any of the provided artists"}), 400
 
