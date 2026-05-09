@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOTIFYPY // PLAYLIST GENERATOR</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --g:    #00ff41;
+  --gdim: #00cc35;
+  --gbg:  rgba(0,255,65,0.06);
+  --gbdr: rgba(0,255,65,0.28);
+  --gbdr2:rgba(0,255,65,0.55);
+  --panel:rgba(0,10,0,0.88);
+  --font: 'Share Tech Mono','Courier New',monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: #000;
+  color: var(--g);
+  font-family: var(--font);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* scanlines */
+body::before {
+  content:'';
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.04) 3px,rgba(0,0,0,0.04) 4px);
+  pointer-events: none;
+}
+
+/* vignette */
+body::after {
+  content:'';
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+  pointer-events: none;
+}
+
+#rain {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.13;
+}
+
+.wrap {
+  position: relative;
+  z-index: 2;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 52px 22px 100px;
+}
+
+/* ── HEADER ── */
+header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.eq {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 4px;
+  height: 32px;
+  margin-bottom: 22px;
+}
+
+.eq span {
+  display: block;
+  width: 5px;
+  background: var(--g);
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 0 6px var(--g);
+  animation: eq var(--d,0.7s) var(--dl,0s) ease-in-out infinite alternate;
+}
+
+@keyframes eq {
+  from { height: 3px; }
+  to   { height: var(--mh, 28px); }
+}
+
+h1 {
+  font-size: clamp(2rem,6.5vw,4.2rem);
+  letter-spacing: 0.38em;
+  color: var(--g);
+  text-shadow: 0 0 12px var(--g), 0 0 28px var(--g), 0 0 55px rgba(0,255,65,0.38);
+  margin-bottom: 10px;
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.08em;
+  height: 0.82em;
+  background: var(--g);
+  vertical-align: middle;
+  margin-left: 3px;
+  box-shadow: 0 0 8px var(--g);
+  animation: blink 1.1s step-end infinite;
+}
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.sub {
+  font-size: 0.75rem;
+  letter-spacing: 0.45em;
+  color: var(--gdim);
+  opacity: 0.8;
+}
+
+/* ── PANEL ── */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--gbdr);
+  border-radius: 2px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+  transition: box-shadow 0.3s;
+}
+
+.panel:hover { box-shadow: 0 0 22px rgba(0,255,65,0.12); }
+
+.phd {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 20px;
+  border-bottom: 1px solid var(--gbdr);
+  background: rgba(0,255,65,0.03);
+}
+
+.step {
+  font-size: 0.67rem;
+  letter-spacing: 0.08em;
+  color: var(--gdim);
+  border: 1px solid var(--gbdr);
+  padding: 2px 7px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.ptitle {
+  font-size: 0.76rem;
+  letter-spacing: 0.3em;
+  color: var(--g);
+  flex: 1;
+}
+
+.badge {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--gdim);
+}
+
+.badge.warn { color: #e8c000; }
+.badge.full { color: #ff5555; }
+
+.pbd { padding: 22px 20px; }
+
+/* ── TEXTAREA ── */
+textarea {
+  width: 100%;
+  min-height: 176px;
+  background: rgba(0,6,0,0.96);
+  border: 1px solid var(--gbdr);
+  border-radius: 2px;
+  color: var(--g);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  line-height: 1.65;
+  padding: 13px 15px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.22s, box-shadow 0.22s;
+}
+
+textarea:focus {
+  border-color: var(--g);
+  box-shadow: 0 0 14px rgba(0,255,65,0.22), inset 0 0 10px rgba(0,255,65,0.04);
+}
+
+textarea::placeholder { color: rgba(0,255,65,0.2); }
+
+.hint {
+  margin-top: 8px;
+  font-size: 0.67rem;
+  letter-spacing: 0.14em;
+  color: rgba(0,255,65,0.35);
+}
+
+/* ── GLOBAL SLIDER ── */
+.grow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.glabel {
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  color: var(--gdim);
+  white-space: nowrap;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  min-width: 100px;
+  height: 3px;
+  background: rgba(0,255,65,0.18);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  background: var(--g);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--g);
+  transition: box-shadow 0.18s;
+}
+
+input[type=range]:hover::-webkit-slider-thumb { box-shadow: 0 0 16px var(--g); }
+input[type=range]::-moz-range-thumb {
+  width: 14px; height: 14px;
+  background: var(--g);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--g);
+}
+
+.rval {
+  font-size: 1rem;
+  color: var(--g);
+  text-shadow: 0 0 8px var(--g);
+  min-width: 26px;
+  text-align: center;
+}
+
+.bsm {
+  background: transparent;
+  border: 1px solid var(--gbdr);
+  color: var(--gdim);
+  font-family: var(--font);
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  padding: 6px 13px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+
+.bsm:hover {
+  border-color: var(--g);
+  color: var(--g);
+  box-shadow: 0 0 10px rgba(0,255,65,0.25);
+}
+
+/* ── ARTIST GRID ── */
+#artist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(265px,1fr));
+  gap: 8px;
+}
+
+.acard {
+  background: rgba(0,6,0,0.92);
+  border: 1px solid rgba(0,255,65,0.17);
+  border-radius: 2px;
+  padding: 10px 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.acard:hover {
+  border-color: rgba(0,255,65,0.45);
+  box-shadow: 0 0 10px rgba(0,255,65,0.1);
+}
+
+.aname {
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  color: var(--g);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.tctrl {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tcb {
+  width: 24px; height: 24px;
+  background: transparent;
+  border: 1px solid rgba(0,255,65,0.28);
+  color: var(--gdim);
+  font-family: var(--font);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.14s;
+  line-height: 1;
+  user-select: none;
+}
+
+.tcb:hover {
+  background: rgba(0,255,65,0.14);
+  color: var(--g);
+  border-color: var(--g);
+}
+
+.tcb-dec { border-radius: 2px 0 0 2px; border-right: none; }
+.tcb-inc { border-radius: 0 2px 2px 0; border-left: none; }
+
+.tcval {
+  width: 30px; height: 24px;
+  background: rgba(0,255,65,0.05);
+  border: 1px solid rgba(0,255,65,0.28);
+  border-left: none; border-right: none;
+  color: var(--g);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  text-align: center;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.tcval::-webkit-outer-spin-button,
+.tcval::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* ── PLAYLIST NAME ── */
+.inlabel {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.24em;
+  color: var(--gdim);
+  margin-bottom: 8px;
+}
+
+.inwrap { position: relative; }
+
+.txtin {
+  width: 100%;
+  background: rgba(0,6,0,0.96);
+  border: 1px solid var(--gbdr);
+  border-radius: 2px;
+  color: var(--g);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  padding: 10px 70px 10px 14px;
+  outline: none;
+  transition: border-color 0.22s, box-shadow 0.22s;
+}
+
+.txtin:focus {
+  border-color: var(--g);
+  box-shadow: 0 0 10px rgba(0,255,65,0.2);
+}
+
+.txtin::placeholder { color: rgba(0,255,65,0.2); }
+
+.charcount {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.64rem;
+  color: rgba(0,255,65,0.3);
+  pointer-events: none;
+}
+
+/* ── GENERATE BUTTON ── */
+#gen-btn {
+  width: 100%;
+  padding: 18px 22px;
+  margin: 6px 0 14px;
+  background: transparent;
+  border: 2px solid var(--g);
+  border-radius: 2px;
+  color: var(--g);
+  font-family: var(--font);
+  font-size: 0.88rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.28s;
+  box-shadow: 0 0 18px rgba(0,255,65,0.18), inset 0 0 18px rgba(0,255,65,0.02);
+}
+
+#gen-btn:not(:disabled):hover {
+  background: rgba(0,255,65,0.07);
+  box-shadow: 0 0 42px rgba(0,255,65,0.5), inset 0 0 22px rgba(0,255,65,0.07);
+  text-shadow: 0 0 10px var(--g);
+}
+
+#gen-btn:not(:disabled) { animation: gpulse 3s ease-in-out infinite; }
+
+@keyframes gpulse {
+  0%,100% { box-shadow: 0 0 18px rgba(0,255,65,0.18), inset 0 0 18px rgba(0,255,65,0.02); }
+  50%      { box-shadow: 0 0 32px rgba(0,255,65,0.34), inset 0 0 18px rgba(0,255,65,0.05); }
+}
+
+#gen-btn:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+  border-color: var(--gbdr);
+  animation: none;
+}
+
+/* ── ERROR ── */
+.errmsg {
+  display: none;
+  background: rgba(200,30,30,0.08);
+  border: 1px solid rgba(255,60,60,0.4);
+  color: #ff7070;
+  padding: 11px 16px;
+  border-radius: 2px;
+  font-size: 0.8rem;
+  margin-bottom: 10px;
+}
+
+.errmsg.on { display: block; }
+
+/* ── LOADING OVERLAY ── */
+#loading {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.93);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+}
+
+#loading.on { display: flex; }
+
+.ltitle {
+  font-size: 1.1rem;
+  letter-spacing: 0.45em;
+  color: var(--g);
+  text-shadow: 0 0 14px var(--g);
+}
+
+.logbox {
+  width: min(500px, 90vw);
+  background: rgba(0,6,0,0.97);
+  border: 1px solid var(--gbdr);
+  border-radius: 2px;
+  padding: 16px 18px;
+  font-size: 0.78rem;
+  line-height: 2;
+}
+
+.ll { color: rgba(0,255,65,0.32); }
+.ll::before { content: '○  '; }
+.ll.active { color: var(--g); }
+.ll.active::before { content: '▶  '; }
+.ll.done { color: var(--gdim); }
+.ll.done::before { content: '✓  '; }
+
+/* ── RESULT ── */
+#result {
+  display: none;
+  border-color: var(--g);
+  box-shadow: 0 0 28px rgba(0,255,65,0.22);
+}
+
+#result.on { display: block; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(140px,1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.sbox {
+  background: rgba(0,255,65,0.04);
+  border: 1px solid rgba(0,255,65,0.18);
+  padding: 12px 15px;
+  border-radius: 2px;
+}
+
+.sval {
+  display: block;
+  font-size: 1.7rem;
+  color: var(--g);
+  text-shadow: 0 0 10px var(--g);
+}
+
+.slabel {
+  display: block;
+  font-size: 0.63rem;
+  letter-spacing: 0.2em;
+  color: var(--gdim);
+  margin-top: 4px;
+}
+
+.openbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 26px;
+  background: rgba(0,255,65,0.07);
+  border: 1px solid var(--g);
+  border-radius: 2px;
+  color: var(--g);
+  font-family: var(--font);
+  font-size: 0.82rem;
+  letter-spacing: 0.24em;
+  text-decoration: none;
+  transition: all 0.22s;
+  margin-bottom: 24px;
+}
+
+.openbtn:hover {
+  background: rgba(0,255,65,0.14);
+  box-shadow: 0 0 22px rgba(0,255,65,0.4);
+  text-shadow: 0 0 8px var(--g);
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid rgba(0,255,65,0.14);
+  margin: 20px 0 16px;
+}
+
+.rtitle {
+  font-size: 0.66rem;
+  letter-spacing: 0.28em;
+  color: var(--gdim);
+  margin-bottom: 10px;
+}
+
+.argrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(210px,1fr));
+  gap: 6px;
+}
+
+.aritem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  padding: 6px 10px;
+  border: 1px solid rgba(0,255,65,0.1);
+  border-radius: 2px;
+  background: rgba(0,5,0,0.8);
+  color: var(--g);
+  overflow: hidden;
+}
+
+.aritem.nf { color: rgba(255,90,90,0.72); border-color: rgba(255,60,60,0.15); }
+.ardot { font-size: 0.55rem; flex-shrink: 0; }
+.arname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.artracks { margin-left: auto; opacity: 0.5; flex-shrink: 0; font-size: 0.7rem; }
+
+.pname-result {
+  font-size: 0.78rem;
+  color: var(--gdim);
+  margin-bottom: 18px;
+  letter-spacing: 0.05em;
+}
+
+.pname-result span { color: var(--g); }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #000; }
+::-webkit-scrollbar-thumb { background: rgba(0,255,65,0.28); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,255,65,0.5); }
+::selection { background: rgba(0,255,65,0.22); color: var(--g); }
+
+@media (max-width: 600px) {
+  h1 { font-size: 1.9rem; }
+  .grow { flex-direction: column; align-items: stretch; }
+  #artist-grid, .argrid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="rain"></canvas>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <div class="eq" id="eq"></div>
+    <h1>SPOTIFYPY<span class="cursor"></span></h1>
+    <p class="sub">[ PLAYLIST GENERATOR ]</p>
+  </header>
+
+  <!-- PANEL 1: Artists -->
+  <div class="panel">
+    <div class="phd">
+      <span class="step">01</span>
+      <span class="ptitle">ARTIST INPUT</span>
+      <span class="badge" id="abadge">0 / 50</span>
+    </div>
+    <div class="pbd">
+      <textarea id="artist-input"
+        placeholder="Paste artist names here, one per line:&#10;&#10;Daft Punk&#10;Justice&#10;Disclosure&#10;...">{{ artists_preset }}</textarea>
+      <div class="hint">ONE ARTIST PER LINE &nbsp;·&nbsp; MAX 50 ARTISTS &nbsp;·&nbsp; DUPLICATES REMOVED</div>
+    </div>
+  </div>
+
+  <!-- PANEL 2: Track config -->
+  <div class="panel">
+    <div class="phd">
+      <span class="step">02</span>
+      <span class="ptitle">TRACK CONFIGURATION</span>
+    </div>
+    <div class="pbd">
+      <div class="grow">
+        <span class="glabel">GLOBAL TRACKS / ARTIST</span>
+        <input type="range" id="gslider" min="1" max="20" value="3">
+        <span class="rval" id="gval">3</span>
+        <button class="bsm" id="apply-all">APPLY TO ALL</button>
+      </div>
+      <div id="artist-grid"></div>
+      <div class="hint" id="no-hint">↑ PASTE ARTISTS ABOVE TO CONFIGURE INDIVIDUALLY</div>
+    </div>
+  </div>
+
+  <!-- PANEL 3: Playlist name -->
+  <div class="panel">
+    <div class="phd">
+      <span class="step">03</span>
+      <span class="ptitle">PLAYLIST SETTINGS</span>
+    </div>
+    <div class="pbd">
+      <label class="inlabel" for="plname">PLAYLIST NAME</label>
+      <div class="inwrap">
+        <input class="txtin" type="text" id="plname"
+          placeholder="Auto-generated from artist names if left blank"
+          maxlength="100">
+        <span class="charcount" id="pllen">0 / 100</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="errmsg" id="errmsg"></div>
+  <button id="gen-btn" disabled>⚡ GENERATE PLAYLIST</button>
+
+  <!-- RESULT -->
+  <div class="panel" id="result">
+    <div class="phd">
+      <span class="step" style="color:var(--g);border-color:var(--g)">✓ OK</span>
+      <span class="ptitle">PLAYLIST CREATED</span>
+    </div>
+    <div class="pbd">
+      <p class="pname-result">PLAYLIST: <span id="res-pname"></span></p>
+      <div class="stats" id="res-stats"></div>
+      <a class="openbtn" id="res-link" href="#" target="_blank" rel="noopener">
+        ▶ OPEN IN SPOTIFY &nbsp;↗
+      </a>
+      <hr class="divider">
+      <div class="rtitle">ARTIST BREAKDOWN</div>
+      <div class="argrid" id="res-artists"></div>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<!-- LOADING OVERLAY -->
+<div id="loading">
+  <div class="ltitle">GENERATING PLAYLIST</div>
+  <div class="logbox" id="logbox"></div>
+</div>
+
+<script>
+// ── Matrix Rain ────────────────────────────────────────────
+const canvas = document.getElementById('rain');
+const ctx    = canvas.getContext('2d');
+const CHARS  = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789♪♫♩♬ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%';
+let cols, drops;
+
+function initRain() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  cols  = Math.floor(canvas.width / 18);
+  drops = Array.from({length: cols}, () => Math.floor(Math.random() * -canvas.height / 18));
+}
+
+function drawRain() {
+  ctx.fillStyle = 'rgba(0,0,0,0.052)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.font = '14px monospace';
+  for (let i = 0; i < cols; i++) {
+    const ch = CHARS[Math.floor(Math.random() * CHARS.length)];
+    const y  = drops[i] * 18;
+    ctx.fillStyle = (drops[i] % 4 === 0) ? '#b8ffcc' : '#00ff41';
+    ctx.fillText(ch, i * 18, y);
+    if (y > canvas.height && Math.random() > 0.974) drops[i] = 0;
+    drops[i]++;
+  }
+}
+
+initRain();
+window.addEventListener('resize', initRain);
+setInterval(drawRain, 42);
+
+// ── EQ Bars ────────────────────────────────────────────────
+(function() {
+  const eq = document.getElementById('eq');
+  const count = 18;
+  const durations = [0.6,0.8,0.5,0.75,0.65,0.9,0.55,0.7,0.85,0.6,0.75,0.5,0.8,0.65,0.9,0.55,0.7,0.6];
+  const delays    = [0,0.1,0.2,0.05,0.15,0.25,0.3,0.08,0.18,0.12,0.22,0.35,0.04,0.14,0.24,0.09,0.19,0.0];
+  const maxH      = [26,18,28,22,30,16,24,28,20,26,18,32,22,28,16,24,20,26];
+  for (let i = 0; i < count; i++) {
+    const b = document.createElement('span');
+    b.style.cssText = `--d:${durations[i]}s;--dl:${delays[i]}s;--mh:${maxH[i]}px`;
+    eq.appendChild(b);
+  }
+})();
+
+// ── State ──────────────────────────────────────────────────
+let artists = []; // [{name, tracks}]
+const MAX = 50, MIN_T = 1, MAX_T = 20, DEF_T = 3;
+
+// ── DOM ────────────────────────────────────────────────────
+const D = id => document.getElementById(id);
+const artistInput = D('artist-input');
+const abadge      = D('abadge');
+const grid        = D('artist-grid');
+const noHint      = D('no-hint');
+const gslider     = D('gslider');
+const gval        = D('gval');
+const applyAll    = D('apply-all');
+const plname      = D('plname');
+const pllen       = D('pllen');
+const genBtn      = D('gen-btn');
+const errmsg      = D('errmsg');
+const result      = D('result');
+const loading     = D('loading');
+const logbox      = D('logbox');
+
+// ── Parse ──────────────────────────────────────────────────
+let ptimer;
+artistInput.addEventListener('input', () => { clearTimeout(ptimer); ptimer = setTimeout(parse, 180); });
+
+function parse() {
+  const lines = artistInput.value.split('\n').map(s => s.trim()).filter(Boolean);
+  const seen = new Set();
+  const unique = [];
+  for (const l of lines) {
+    const k = l.toLowerCase();
+    if (!seen.has(k)) { seen.add(k); unique.push(l); }
+  }
+  const limited = unique.slice(0, MAX);
+
+  const prev = {};
+  artists.forEach(a => { prev[a.name.toLowerCase()] = a.tracks; });
+
+  artists = limited.map(name => ({
+    name,
+    tracks: prev[name.toLowerCase()] ?? parseInt(gslider.value)
+  }));
+
+  updateBadge();
+  renderGrid();
+  updateBtn();
+}
+
+function updateBadge() {
+  const n = artists.length;
+  abadge.textContent = `${n} / ${MAX}`;
+  abadge.className   = 'badge' + (n >= MAX ? ' full' : n >= 40 ? ' warn' : '');
+}
+
+// ── Grid ───────────────────────────────────────────────────
+function renderGrid() {
+  noHint.style.display = artists.length ? 'none' : '';
+
+  // sync existing cards order + values, add new, remove stale
+  const names = new Set(artists.map(a => a.name));
+  [...grid.querySelectorAll('.acard')].forEach(c => {
+    if (!names.has(c.dataset.n)) c.remove();
+  });
+
+  artists.forEach((a, i) => {
+    let card = grid.querySelector(`.acard[data-idx="${i}"]`);
+    const existing = grid.querySelector(`.acard[data-n="${CSS.escape(a.name)}"]`);
+    if (existing) {
+      existing.dataset.idx = i;
+      existing.querySelector('.tcval').value = a.tracks;
+      card = existing;
+    } else {
+      card = mkCard(a.name, a.tracks, i);
+      grid.appendChild(card);
+    }
+    if (grid.children[i] !== card) grid.insertBefore(card, grid.children[i] || null);
+  });
+}
+
+function mkCard(name, tracks, idx) {
+  const el = document.createElement('div');
+  el.className = 'acard';
+  el.dataset.n   = name;
+  el.dataset.idx = idx;
+  el.innerHTML = `
+    <span class="aname" title="${esc(name)}">${esc(name)}</span>
+    <div class="tctrl">
+      <button class="tcb tcb-dec" type="button">−</button>
+      <input  class="tcval" type="number" min="${MIN_T}" max="${MAX_T}" value="${tracks}">
+      <button class="tcb tcb-inc" type="button">+</button>
+    </div>`;
+
+  const inp = el.querySelector('.tcval');
+
+  el.querySelector('.tcb-dec').addEventListener('click', () => {
+    const v = clampT(+inp.value - 1);
+    inp.value = v;
+    sync(name, v);
+  });
+
+  el.querySelector('.tcb-inc').addEventListener('click', () => {
+    const v = clampT(+inp.value + 1);
+    inp.value = v;
+    sync(name, v);
+  });
+
+  inp.addEventListener('change', () => {
+    const v = clampT(+inp.value || DEF_T);
+    inp.value = v;
+    sync(name, v);
+  });
+
+  return el;
+}
+
+const clampT = v => Math.max(MIN_T, Math.min(MAX_T, v));
+
+function sync(name, val) {
+  const a = artists.find(x => x.name === name);
+  if (a) a.tracks = val;
+}
+
+// ── Global slider ──────────────────────────────────────────
+gslider.addEventListener('input', () => { gval.textContent = gslider.value; });
+
+applyAll.addEventListener('click', () => {
+  const v = parseInt(gslider.value);
+  artists.forEach(a => a.tracks = v);
+  grid.querySelectorAll('.tcval').forEach(inp => inp.value = v);
+});
+
+// ── Name char count ────────────────────────────────────────
+plname.addEventListener('input', () => { pllen.textContent = `${plname.value.length} / 100`; });
+
+// ── Button label ───────────────────────────────────────────
+function updateBtn() {
+  const n = artists.length;
+  genBtn.disabled = n === 0;
+  if (n > 0) {
+    const total = artists.reduce((s, a) => s + a.tracks, 0);
+    genBtn.textContent = `⚡ GENERATE PLAYLIST  ·  ${n} ARTIST${n>1?'S':''}  ·  ~${total} TRACKS`;
+  } else {
+    genBtn.textContent = '⚡ GENERATE PLAYLIST';
+  }
+}
+
+// ── Errors ─────────────────────────────────────────────────
+function showErr(msg) { errmsg.textContent = msg; errmsg.classList.add('on'); }
+function hideErr()    { errmsg.classList.remove('on'); }
+
+// ── Loading log ────────────────────────────────────────────
+const LOG_STEPS = [
+  'AUTHENTICATING WITH SPOTIFY',
+  'SEARCHING ARTISTS',
+  'FETCHING TOP TRACKS',
+  'BUILDING PLAYLIST',
+  'ADDING TRACKS',
+  'FINALIZING',
+];
+
+function initLog() {
+  logbox.innerHTML = LOG_STEPS.map(s => `<div class="ll">${s}</div>`).join('');
+}
+
+function stepLog(i) {
+  [...logbox.querySelectorAll('.ll')].forEach((el, idx) => {
+    el.className = 'll' + (idx < i ? ' done' : idx === i ? ' active' : '');
+  });
+}
+
+// ── Generate ───────────────────────────────────────────────
+genBtn.addEventListener('click', async () => {
+  if (!artists.length) return;
+  hideErr();
+  result.classList.remove('on');
+
+  initLog();
+  stepLog(0);
+  loading.classList.add('on');
+
+  let li = 0;
+  const logTick = setInterval(() => {
+    li = Math.min(li + 1, LOG_STEPS.length - 1);
+    stepLog(li);
+  }, 750);
+
+  try {
+    const res = await fetch('/api/create-playlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        artists: artists.map(a => ({ name: a.name, tracks: a.tracks })),
+        playlist_name: plname.value.trim()
+      })
+    });
+
+    clearInterval(logTick);
+    [...logbox.querySelectorAll('.ll')].forEach(el => el.className = 'll done');
+    await sleep(380);
+    loading.classList.remove('on');
+
+    const data = await res.json();
+    if (!res.ok) { showErr(`ERROR: ${data.error || 'Unknown error'}`); return; }
+    renderResult(data);
+
+  } catch (e) {
+    clearInterval(logTick);
+    loading.classList.remove('on');
+    showErr(`CONNECTION ERROR: ${e.message}`);
+  }
+});
+
+function renderResult(d) {
+  D('res-pname').textContent = d.playlist_name;
+  D('res-stats').innerHTML = [
+    [d.total_tracks,    'TOTAL TRACKS'],
+    [d.artists_found,   'ARTISTS FOUND'],
+    [d.artists.length - d.artists_found, 'NOT FOUND'],
+  ].map(([v, l]) => `<div class="sbox"><span class="sval">${v}</span><span class="slabel">${l}</span></div>`).join('');
+
+  D('res-link').href = d.url;
+
+  D('res-artists').innerHTML = d.artists.map(a => `
+    <div class="aritem${a.found ? '' : ' nf'}">
+      <span class="ardot">${a.found ? '●' : '○'}</span>
+      <span class="arname">${esc(a.found ? (a.canonical || a.name) : a.name)}</span>
+      ${a.found ? `<span class="artracks">${a.tracks}t</span>` : ''}
+    </div>`).join('');
+
+  result.classList.add('on');
+  setTimeout(() => result.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+}
+
+// ── Helpers ────────────────────────────────────────────────
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ── Init ───────────────────────────────────────────────────
+parse();   // parse pre-filled textarea if any
+updateBtn();
+</script>
+</body>
+</html>
