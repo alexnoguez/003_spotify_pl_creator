@@ -2,8 +2,6 @@
 
 A personal web app that generates Spotify playlists from a list of artists. Paste up to 50 artist names, configure how many top tracks to pull per artist (globally or individually), name your playlist, and hit generate — a new playlist lands in your Spotify account instantly.
 
-![Interface screenshot placeholder]
-
 ---
 
 ## Features
